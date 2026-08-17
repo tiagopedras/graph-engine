@@ -1,0 +1,22 @@
+{
+  "name": "graph-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A focused-node dependency diagram: pass it a plain { nodes, edges } graph and it lays out, draws, and lets you expand what depends on what. No knowledge of any particular data source baked in.",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "graph.js",
+    "GraphView.jsx"
+  ],
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "cytoscape": "^3.34.0",
+    "cytoscape-elk": "^2.3.0",
+    "elkjs": "^0.12.0"
+  }
+}
