@@ -189,10 +189,15 @@ function positionBadges(cy, vertical) {
 // `kindColor` maps a node's `kind` to a CSS colour; anything not in the map
 // falls back to a neutral grey, so this renders something sensible even for
 // a caller that passes none at all.
+//
+// `defaultOrientation` ("vertical" | "horizontal") is which way the tree runs
+// when it first draws. It stays "vertical" if nobody says otherwise, so this
+// is an opt-in for callers whose panel is wider than it is tall.
 export default function GraphView({
   graph,
   focusedId,
   kindColor = {},
+  defaultOrientation = "vertical",
   onPreview,
   canGoBack,
   canGoForward,
@@ -202,7 +207,9 @@ export default function GraphView({
   const containerRef = useRef(null);
   const cyRef = useRef(null);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
-  const [vertical, setVertical] = useState(true);
+  // Only the starting value — the toggle owns it from then on, so a caller
+  // stating a preference isn't the same as taking the choice away.
+  const [vertical, setVertical] = useState(defaultOrientation !== "horizontal");
   const prevFocusedIdRef = useRef(null);
   const prevVerticalRef = useRef(vertical);
   const savedViewportRef = useRef(null);

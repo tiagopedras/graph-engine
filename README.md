@@ -62,6 +62,11 @@ const kindColor = { thing: "#2563eb", otherThing: "#059669" };
 <GraphView graph={graph} focusedId={someNodeId} kindColor={kindColor} onPreview={setPreviewId} />
 ```
 
+The tree runs top-to-bottom unless you say otherwise. `defaultOrientation="horizontal"`
+starts it running left-to-right instead, which suits a panel that's wider than it is
+tall. It sets only the starting direction — the Vertical/Horizontal toggle still works,
+because a caller having a sensible default shouldn't cost the reader the choice.
+
 `loadGraph`, `dependents` and `dependencies` (in `graph.js`) are the traversal
 half — plain BFS in either direction, with no rendering involved — useful for
 building your own impact summary or search the way ds-graph's `lib/graph.js`
