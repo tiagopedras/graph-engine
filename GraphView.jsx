@@ -214,8 +214,13 @@ export default function GraphView({
   const prevVerticalRef = useRef(vertical);
   const savedViewportRef = useRef(null);
 
-  // Start fully collapsed again whenever the focused node changes.
-  useEffect(() => setExpandedIds(new Set()), [focusedId]);
+  // Start fully collapsed again whenever the focused node changes. Keeping the
+  // existing Set when it's already empty matters more than it looks: a fresh
+  // Set here would rebuild `elements` right after the first render, tearing
+  // down the Cytoscape instance below while its ELK layout was still in
+  // flight — and that layout can't be cancelled (cytoscape-elk's `stop()` is
+  // a no-op), so it would land on a destroyed instance and throw.
+  useEffect(() => setExpandedIds((prev) => (prev.size === 0 ? prev : new Set())), [focusedId]);
 
   const elements = useMemo(
     () => (focusedId ? buildElements(graph, focusedId, expandedIds) : []),
