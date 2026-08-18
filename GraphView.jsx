@@ -41,6 +41,10 @@ function frontierWalk(startId, edgeMap, neighborId, expandedIds) {
   const parentEdge = new Map();
   const visited = new Set([startId]);
   const hasHidden = new Map();
+  // How many hops from the hub each node sits at — the rank the layout will
+  // put it on, known here from the walk itself rather than read back off
+  // coordinates later.
+  const depth = new Map([[startId, 0]]);
   const queue = [startId];
   while (queue.length) {
     const id = queue.shift();
@@ -53,13 +57,14 @@ function frontierWalk(startId, edgeMap, neighborId, expandedIds) {
       if (canExpand && !visited.has(nid)) {
         visited.add(nid);
         parentEdge.set(nid, e);
+        depth.set(nid, depth.get(id) + 1);
         queue.push(nid);
       }
     }
     hasHidden.set(id, !canExpand && childCount > 0);
   }
   visited.delete(startId);
-  return { visited, parentEdge, hasHidden };
+  return { visited, parentEdge, hasHidden, depth };
 }
 
 // Builds a two-sided tree: what the focused node depends on (above) and
@@ -77,6 +82,13 @@ function buildElements(graph, focusedId, expandedIds) {
   for (const id of depsWalk.visited) roles.set(id, "dependency");
   for (const id of dependentsWalk.visited) roles.set(id, "dependent");
 
+  // Signed distance from the hub — dependencies count one way, dependents the
+  // other, hub at zero. That's the tree's own idea of a rank, and it's what
+  // centerRanks groups on.
+  const rankById = new Map([[focusedId, 0]]);
+  for (const id of depsWalk.visited) rankById.set(id, -depsWalk.depth.get(id));
+  for (const id of dependentsWalk.visited) rankById.set(id, dependentsWalk.depth.get(id));
+
   const elements = [];
   for (const [id, role] of roles) {
     const n = graph.nodeById.get(id);
@@ -88,6 +100,7 @@ function buildElements(graph, focusedId, expandedIds) {
         width: measureLabelWidth(label),
         kind: n?.kind || "unknown",
         role,
+        rank: rankById.get(id) ?? 0,
         external: !!n?.external,
       },
     });
@@ -141,23 +154,29 @@ function buildElements(graph, focusedId, expandedIds) {
 // the cross-axis, once ELK has placed everything so real node sizes are
 // known. In a vertical tree ranks are horizontal rows centred on x; in a
 // horizontal tree they're vertical columns centred on y.
+//
+// Which nodes share a rank comes from each node's own `rank` data rather than
+// from where it sits. ELK lines a rank up on the edge facing the next rank,
+// so nodes of different sizes across the rank axis end up at different
+// centres: in a vertical tree every node is 28 high and that never shows, but
+// in a horizontal tree widths follow the label, so grouping by centre used to
+// split one column into a rank per node and then stack every one of them on
+// the hub's line, drawing them all on top of each other.
 function centerRanks(cy, focusedId, gap, vertical) {
   const hub = cy.$id(focusedId);
   if (hub.empty()) return;
   const mainAxis = vertical ? "x" : "y";
-  const rankAxis = vertical ? "y" : "x";
   const sizeOf = (n) => (vertical ? n.width() : n.height());
   const hubMain = hub.position(mainAxis);
-  const hubRank = Math.round(hub.position(rankAxis));
   const ranks = new Map();
   cy.nodes().forEach((n) => {
     if (n.data("role") === "expand-badge") return;
-    const rank = Math.round(n.position(rankAxis));
+    const rank = n.data("rank");
     if (!ranks.has(rank)) ranks.set(rank, []);
     ranks.get(rank).push(n);
   });
   for (const [rank, rankNodes] of ranks) {
-    if (rank === hubRank) continue;
+    if (rank === 0) continue;
     rankNodes.sort((a, b) => a.position(mainAxis) - b.position(mainAxis));
     const total = rankNodes.reduce((sum, n) => sum + sizeOf(n), 0) + gap * (rankNodes.length - 1);
     let pos = hubMain - total / 2;
